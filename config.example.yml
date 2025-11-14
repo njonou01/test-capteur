@@ -1,0 +1,101 @@
+# Configuration des capteurs
+capteurs:
+  temperature:
+    enabled: true
+    type: "DHT22"  # DHT11, DHT22, DS18B20
+    pin: 4
+    intervalle: 60  # secondes
+    offset: 0.0  # correction de température
+
+  humidite:
+    enabled: true
+    type: "DHT22"
+    pin: 4  # même capteur que température
+    intervalle: 60
+    offset: 0.0  # correction d'humidité
+
+  pression:
+    enabled: true
+    type: "BMP280"  # BMP180, BMP280, BME280
+    i2c_address: "0x76"
+    intervalle: 60
+
+  luminosite:
+    enabled: false
+    type: "BH1750"
+    i2c_address: "0x23"
+    intervalle: 60
+
+# Configuration réseau
+network:
+  mqtt_broker: "localhost"
+  mqtt_port: 1883
+  mqtt_user: ""
+  mqtt_password: ""
+  mqtt_topics:
+    temperature: "capteurs/temperature"
+    humidite: "capteurs/humidite"
+    pression: "capteurs/pression"
+    luminosite: "capteurs/luminosite"
+
+  # API REST (optionnel)
+  api_enabled: true
+  api_host: "0.0.0.0"
+  api_port: 8000
+  api_cors_enabled: true
+
+# Configuration base de données
+database:
+  type: "influxdb"  # influxdb, postgresql, sqlite, mongodb
+  host: "localhost"
+  port: 8086
+  name: "capteurs_db"
+  user: "admin"
+  password: "changeme"
+
+  # Configuration spécifique InfluxDB 2.x
+  org: "test-capteur"
+  token: "my-super-secret-token"
+  bucket: "capteurs_db"
+
+  # Rétention des données
+  retention_days: 30
+
+# Configuration logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "/var/log/test-capteur/app.log"
+  max_size_mb: 10
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  console_output: true
+
+# Configuration alertes
+alertes:
+  enabled: true
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    sender: "capteur@example.com"
+    password: "your-password"
+    recipients:
+      - "admin@example.com"
+
+  seuils:
+    temperature:
+      min: 10.0
+      max: 35.0
+    humidite:
+      min: 20.0
+      max: 80.0
+    pression:
+      min: 980.0
+      max: 1050.0
+
+# Configuration système
+system:
+  mode: "production"  # development, production
+  timezone: "Europe/Paris"
+  update_check: true
+  telemetry: false
