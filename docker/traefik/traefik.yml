@@ -1,0 +1,145 @@
+# ========================================
+# TRAEFIK CONFIGURATION - Entrance Cockpit
+# ========================================
+# Version: 2.10
+# Mode: HTTPS with Self-Signed Certificates (Development)
+# ========================================
+
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+# ========================================
+# API & DASHBOARD
+# ========================================
+api:
+  dashboard: true
+  insecure: true
+  debug: false
+
+# ========================================
+# ENTRY POINTS
+# ========================================
+entryPoints:
+  # HTTP Entry Point (Port 80)
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  # HTTPS Entry Point (Port 443)
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: selfSigned
+        domains:
+          - main: localhost
+            sans:
+              - "*.localhost"
+      middlewares:
+        - security-headers@file
+        - rate-limit@file
+
+# ========================================
+# PROVIDERS
+# ========================================
+providers:
+  # Docker provider
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: entrance-network
+    watch: true
+
+  # File provider for dynamic configuration
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# ========================================
+# CERTIFICATE RESOLVERS
+# ========================================
+certificatesResolvers:
+  # Self-signed certificates for development
+  selfSigned:
+    acme:
+      email: admin@entrancecockpit.local
+      storage: /letsencrypt/acme.json
+      # Use HTTP challenge for local development
+      httpChallenge:
+        entryPoint: web
+
+  # Let's Encrypt for production (commented out for dev)
+  # letsencrypt:
+  #   acme:
+  #     email: admin@yourdomain.com
+  #     storage: /letsencrypt/acme.json
+  #     caServer: https://acme-v02.api.letsencrypt.org/directory
+  #     httpChallenge:
+  #       entryPoint: web
+  #     tlsChallenge: true
+
+# ========================================
+# LOGGING
+# ========================================
+log:
+  level: INFO
+  # Levels: DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+  filePath: /var/log/traefik/traefik.log
+  format: json
+
+# Access logs
+accessLog:
+  filePath: /var/log/traefik/access.log
+  format: json
+  bufferingSize: 100
+  filters:
+    statusCodes:
+      - "200"
+      - "300-302"
+      - "400-499"
+      - "500-599"
+    retryAttempts: true
+    minDuration: "10ms"
+
+# ========================================
+# METRICS (Optional - Prometheus)
+# ========================================
+# metrics:
+#   prometheus:
+#     addEntryPointsLabels: true
+#     addServicesLabels: true
+#     entryPoint: metrics
+#     buckets:
+#       - 0.1
+#       - 0.3
+#       - 1.2
+#       - 5.0
+
+# ========================================
+# TRACING (Optional - Jaeger)
+# ========================================
+# tracing:
+#   jaeger:
+#     samplingServerURL: http://jaeger:5778/sampling
+#     localAgentHostPort: jaeger:6831
+
+# ========================================
+# GLOBAL HTTP OPTIONS
+# ========================================
+serversTransport:
+  insecureSkipVerify: true
+  # Set to false in production
+  rootCAs:
+    - /certs/ca.crt
+  maxIdleConnsPerHost: 200
+
+# ========================================
+# TIMEOUTS
+# ========================================
+# Set at entry point level via dynamic configuration

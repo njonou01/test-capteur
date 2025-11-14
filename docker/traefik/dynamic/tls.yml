@@ -1,0 +1,248 @@
+# ========================================
+# TRAEFIK DYNAMIC CONFIGURATION
+# ========================================
+# TLS, Middlewares, and Security Settings
+# ========================================
+
+# ========================================
+# TLS CONFIGURATION
+# ========================================
+tls:
+  # TLS options
+  options:
+    default:
+      minVersion: VersionTLS12
+      maxVersion: VersionTLS13
+      sniStrict: true
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+        - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+      curvePreferences:
+        - CurveP521
+        - CurveP384
+      alpnProtocols:
+        - h2
+        - http/1.1
+
+  # Self-signed certificates for development
+  certificates:
+    - certFile: /certs/localhost.crt
+      keyFile: /certs/localhost.key
+
+  # TLS stores
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/localhost.crt
+        keyFile: /certs/localhost.key
+
+# ========================================
+# HTTP MIDDLEWARES
+# ========================================
+http:
+  middlewares:
+    # Security Headers
+    security-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowOriginList:
+          - https://localhost
+          - https://localhost:443
+        accessControlAllowHeaders:
+          - "*"
+        accessControlMaxAge: 100
+        addVaryHeader: true
+        sslRedirect: true
+        sslProxyHeaders:
+          X-Forwarded-Proto: https
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=()"
+        customResponseHeaders:
+          X-Custom-Header: "Entrance-Cockpit-v1.0"
+          Server: "Entrance-Cockpit"
+
+    # CORS Headers (for API endpoints)
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+        accessControlAllowOriginList:
+          - https://localhost
+          - https://localhost:443
+        accessControlAllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
+          - Accept
+          - Origin
+        accessControlExposeHeaders:
+          - Content-Length
+          - X-Total-Count
+          - X-RateLimit-Limit
+          - X-RateLimit-Remaining
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 3600
+        addVaryHeader: true
+
+    # Rate Limiting - General
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1m
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # Rate Limiting - Strict (for auth endpoints)
+    rate-limit-strict:
+      rateLimit:
+        average: 10
+        burst: 5
+        period: 1m
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # Rate Limiting - Relaxed (for static content)
+    rate-limit-relaxed:
+      rateLimit:
+        average: 500
+        burst: 200
+        period: 1m
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # Compress responses
+    compression:
+      compress:
+        excludedContentTypes:
+          - text/event-stream
+
+    # Circuit Breaker
+    circuit-breaker:
+      circuitBreaker:
+        expression: "NetworkErrorRatio() > 0.5 || ResponseCodeRatio(500, 600, 0, 600) > 0.3"
+        checkPeriod: 10s
+        fallbackDuration: 30s
+        recoveryDuration: 10s
+
+    # Retry
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: 100ms
+
+    # Request timeout
+    timeout:
+      forwardingTimeouts:
+        dialTimeout: 30s
+        responseHeaderTimeout: 30s
+        idleConnTimeout: 90s
+
+    # Strip prefix for API routing
+    strip-api-prefix:
+      stripPrefix:
+        prefixes:
+          - /api
+
+    # Add prefix
+    add-api-prefix:
+      addPrefix:
+        prefix: /api
+
+    # Redirect to HTTPS
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    # IP Whitelist (example - adjust as needed)
+    # whitelist:
+    #   ipWhiteList:
+    #     sourceRange:
+    #       - 127.0.0.1/32
+    #       - 192.168.0.0/16
+    #       - 10.0.0.0/8
+
+    # Basic Auth (example - for admin endpoints)
+    # basic-auth:
+    #   basicAuth:
+    #     users:
+    #       - "admin:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"
+    #       # admin:admin (htpasswd generated)
+
+# ========================================
+# HTTP SERVICES (Optional - Load Balancing)
+# ========================================
+# http:
+#   services:
+#     backend-service:
+#       loadBalancer:
+#         servers:
+#           - url: "http://backend1:8080"
+#           - url: "http://backend2:8080"
+#         healthCheck:
+#           path: /health
+#           interval: 30s
+#           timeout: 5s
+#         sticky:
+#           cookie:
+#             name: entrance_session
+#             secure: true
+#             httpOnly: true
+
+# ========================================
+# TCP CONFIGURATION (Optional)
+# ========================================
+# tcp:
+#   routers:
+#     postgres-router:
+#       rule: "HostSNI(`db.localhost`)"
+#       service: postgres-service
+#       tls:
+#         passthrough: true
+#
+#   services:
+#     postgres-service:
+#       loadBalancer:
+#         servers:
+#           - address: "postgres:5432"
+
+# ========================================
+# UDP CONFIGURATION (Optional)
+# ========================================
+# udp:
+#   routers:
+#     syslog-router:
+#       entryPoints:
+#         - udp
+#       service: syslog-service
+#
+#   services:
+#     syslog-service:
+#       loadBalancer:
+#         servers:
+#           - address: "syslog:514"
